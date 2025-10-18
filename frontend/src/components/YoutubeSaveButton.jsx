@@ -27,9 +27,8 @@ export default function YoutubeSaveButton() {
       console.log('Save clicked');
     };
 
-    return saveBtn; // <--- important
+    return saveBtn;
   };
 
   return { createButton };
 }
-// ...existing code...
