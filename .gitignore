@@ -1,5 +1,6 @@
 # Backend Files #
 backend/venv/
+backend/youRandBackend/.env
 *.pyc
 __pycache__/
 

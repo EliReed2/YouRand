@@ -1,5 +1,18 @@
-// ...existing code...
 export default function YoutubeSaveButton() {
+  
+  //Helper function to retrieve and return a URL search parameter
+  const getVideoId = () => {
+    try {
+      const url = new URL(window.location.href);
+      //Pull "v" parameter from URL
+      const vidId = url.searchParams.get('v');
+      return vidId ? vidId : "Not Found";
+    } catch (error) {
+      console.log('Error retrieving video ID:', error);
+      return 'Not Found';
+    }
+  }
+
   const createButton = () => {
     const saveBtn = document.createElement('button');
     saveBtn.className = 'yt-spec-button-shape-next yt-spec-button-shape-next--size-m my-save-button';
@@ -23,12 +36,19 @@ export default function YoutubeSaveButton() {
     saveBtn.appendChild(img);
 
     saveBtn.onclick = () => {
-      // your save logic
       console.log('Save clicked');
+      handleSaveClick();
     };
 
     return saveBtn;
   };
+
+  //Function to handle click of button by passing the video id to util function
+  const handleSaveClick = () => {
+    //Get video id
+    const videoId = getVideoId();
+    console.log('Video ID:', videoId);
+  }
 
   return { createButton };
 }
