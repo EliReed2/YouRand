@@ -1,5 +1,15 @@
+
 export default function YoutubeSaveButton() {
   
+  //Helper function to send a message to background script
+  function sendToBackground(message) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(message, (resp) => {
+        resolve(resp);
+      });
+    });
+  }
+
   //Helper function to retrieve and return a URL search parameter
   const getVideoId = () => {
     try {
@@ -35,20 +45,28 @@ export default function YoutubeSaveButton() {
 
     saveBtn.appendChild(img);
 
-    saveBtn.onclick = () => {
-      console.log('Save clicked');
-      handleSaveClick();
-    };
+    saveBtn.addEventListener('click', handleSaveClick);
 
     return saveBtn;
   };
 
   //Function to handle click of button by passing the video id to util function
-  const handleSaveClick = () => {
+  const handleSaveClick = async () => {
     //Get video id
     const videoId = getVideoId();
-    console.log('Video ID:', videoId);
-  }
+    if (videoId === 'Not Found') {
+      console.error('Cannot save video: Video ID not found');
+      return;
+    }
+    //Send message to background script
+    const resp = await sendToBackground({ type: 'FETCH_VIDEO_INFO', video_id: videoId });
+    if (resp?.ok) {
+      console.log('All good!');
+      // do whatever with resp.data
+    } else {
+      console.error('background fetch failed', resp?.err);
+    }
+  };
 
   return { createButton };
 }
