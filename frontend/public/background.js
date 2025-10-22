@@ -30,7 +30,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
-  if (msg.type === 'FETCH_VIDEO_INFO') {
+  if (msg.type === 'SEND_VIDEO_INFO') {
     const videoId = msg.video_id;
     if (!videoId) {
       sendResponse({ ok: false, err: 'missing video_id' });
@@ -60,5 +60,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true; // keep message channel open for async response
   }
 
+  if (msg.type === 'FETCH_VIDEO_INFO') {
+    //prompt server to send a selected video with it's info dictionary
+
+
   // other message types...
+  }
 });

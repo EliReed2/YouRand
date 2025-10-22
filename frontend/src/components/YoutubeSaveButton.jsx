@@ -59,7 +59,7 @@ export default function YoutubeSaveButton() {
       return;
     }
     //Send message to background script
-    const resp = await sendToBackground({ type: 'FETCH_VIDEO_INFO', video_id: videoId });
+    const resp = await sendToBackground({ type: 'SEND_VIDEO_INFO', video_id: videoId });
     if (resp?.ok) {
       console.log('All good!');
       // do whatever with resp.data

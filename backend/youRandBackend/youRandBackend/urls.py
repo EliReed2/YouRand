@@ -18,9 +18,11 @@ from django.contrib import admin
 from django.urls import path
 from api.views import recieveVideoId
 from api.views import fetch_video_info
+from api.views import send_video_info
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/recieveVideo/', recieveVideoId),
     path('api/fetchVideoInfo/', fetch_video_info),
+    path('api/sendVideoInfo/', send_video_info)
 ]

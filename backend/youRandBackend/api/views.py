@@ -3,9 +3,11 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 import requests
+import random
 import os
 from dotenv import load_dotenv
 from .models import ExtensionUser
+from .utils import weighted_tag_selector_smooth
 from django.utils import timezone
 
 # Load environment variables from .env file
@@ -61,6 +63,7 @@ def fetch_video_info(request):
     
     #Bse Youtube API URL
     YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3/videos"
+    YOUTUBE_API_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
     #additional parameters for API request
     params = {
         "part": "snippet,contentDetails,statistics",
@@ -98,23 +101,13 @@ def fetch_video_info(request):
     channel_title = video_info.get("channelTitle", "Unknown Channel")
     video_title = video_info.get("title", "Untitled Video")
     published_at = video_info.get("publishedAt", "Unknown Date")
-    tags = video_info.get("tags", [])
+    all_tags = video_info.get("tags", [])
+    tags = random.sample(all_tags, min(len(all_tags), 3))
     likes = video_data['items'][0]['statistics'].get('likeCount', '0')
     views = video_data['items'][0]['statistics'].get('viewCount', '0')
+    thumbnail = video_info.get("thumbnails", {}).get("medium", {}).get("url", "")
+    channel_id = video_info.get("channelId", "")
 
-    #Dict to add to saved to savedVideos list in ExtensionUser model
-    video_details = {
-        "video_id": video_id,
-        "video_title": video_title,
-        "channel_title": channel_title,
-        "published_at": published_at,
-        "tags": tags,
-        "likes": likes,
-        "views": views
-    }
-
-    #Append video details to saved_videos list
-    user.saved_videos.append(video_details)
 
     #Append Channel name to saved_channels list if not already present
     if channel_title not in user.saved_channels:
@@ -127,8 +120,97 @@ def fetch_video_info(request):
         else:
             user.category_likes[tag] = 1
 
+    #Make final call to youtube API for channel request to get channel image
+    channel_params = {
+        "part": "snippet",
+        "id": channel_id,
+        "key": YOUTUBE_API_KEY
+    }
+    try:
+        #Try to call youtube data API
+        response = requests.get(YOUTUBE_API_CHANNEL_URL, params=channel_params, timeout=10)
+        response.raise_for_status()
+        channel_data = response.json()
+    except requests.HTTPError as e:
+        return JsonResponse({"status": "error", "message": "YouTube API error", "detail": str(e), "response": getattr(e.response, 'text', None)}, status=502)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": "Request failed", "detail": str(e)}, status=502)
+
+    #Parse out channel small thumbnail image
+    channel_info = channel_data.get("items", [{}])[0].get("snippet", {})
+    channel_thumbnail = channel_info.get("thumbnails", {}).get("default", {}).get("url", "")
+
+    #Dict to add to saved to savedVideos list in ExtensionUser model
+    video_details = {
+        "video_id": video_id,
+        "video_title": video_title,
+        "channel_title": channel_title,
+        "published_at": published_at,
+        "tags": tags,
+        "likes": likes,
+        "views": views,
+        "thumbnail": thumbnail,
+        "channel_thumbnail": channel_thumbnail,
+    }
+
+    #Append video details to saved_videos list
+    user.saved_videos.append(video_details)
+
     #Save changes to user model
     user.save()
 
     print("End reached")
     return JsonResponse({"status": "ok"})
+
+
+#Request that selects a random video using algorithm for user using UID and sends back video info
+@csrf_exempt
+def send_video_info(request):
+    # Ensure 
+    if request.method != 'GET':
+        return JsonResponse({"status": "error", "message": "Invalid request method"}, status=405)
+    # Get payload from request body
+    #Get uid from request
+    uid = request.GET.get('uid')
+    
+    if not uid:
+        return JsonResponse({"status": "error", "message": "No uid provided"}, status=400)
+
+    #Use uid to find the corresponding extensionUser model if it exists
+    try:
+        user = ExtensionUser.objects.get(uid=uid)
+    except ExtensionUser.DoesNotExist:
+        user = None
+
+    if not user or not user.saved_videos:
+        #Default to trending if they have not saved videos
+        tag = "trending"
+    else:
+        category_likes = user.category_likes
+        #Generate 10 tags to use in video search
+        tag = weighted_tag_selector_smooth(category_likes)
+        
+
+    #Use youtube video search with tag API call to receive a list of potential videos
+    search_params = {
+        "part": "snippet",
+        "q": tag,
+        "type": "video",
+        "maxResults": "50",
+        "order": "relevance",
+        "key": YOUTUBE_API_KEY
+    }
+
+    YOUTUBE_API_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
+    try:
+        #call youtube data API
+        response = requests.get(YOUTUBE_API_SEARCH_URL, params=search_params, timeout=10)
+        response.raise_for_status()
+        videos = response.json()
+    except requests.HTTPError as e:
+        return JsonResponse({"status": "error", "message": "YouTube API error", "detail": str(e), "response": getattr(e.response, 'text', None)}, status=502)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": "Request failed", "detail": str(e)}, status=502)
+
+    return JsonResponse({"status": "ok", "tag": tag, "data": videos}, status=200)
+
