@@ -166,51 +166,105 @@ def fetch_video_info(request):
 #Request that selects a random video using algorithm for user using UID and sends back video info
 @csrf_exempt
 def send_video_info(request):
-    # Ensure 
     if request.method != 'GET':
         return JsonResponse({"status": "error", "message": "Invalid request method"}, status=405)
-    # Get payload from request body
-    #Get uid from request
+
     uid = request.GET.get('uid')
-    
     if not uid:
         return JsonResponse({"status": "error", "message": "No uid provided"}, status=400)
 
-    #Use uid to find the corresponding extensionUser model if it exists
+    # Get or fallback user
     try:
         user = ExtensionUser.objects.get(uid=uid)
     except ExtensionUser.DoesNotExist:
         user = None
 
     if not user or not user.saved_videos:
-        #Default to trending if they have not saved videos
         tag = "trending"
     else:
         category_likes = user.category_likes
-        #Generate 10 tags to use in video search
         tag = weighted_tag_selector_smooth(category_likes)
-        
 
-    #Use youtube video search with tag API call to receive a list of potential videos
+    # --- YouTube Search ---
     search_params = {
         "part": "snippet",
         "q": tag,
         "type": "video",
-        "maxResults": "50",
+        "maxResults": 50,
         "order": "relevance",
-        "key": YOUTUBE_API_KEY
+        "key": YOUTUBE_API_KEY,
     }
 
     YOUTUBE_API_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
+    YOUTUBE_API_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
+    YOUTUBE_API_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
     try:
-        #call youtube data API
         response = requests.get(YOUTUBE_API_SEARCH_URL, params=search_params, timeout=10)
         response.raise_for_status()
         videos = response.json()
-    except requests.HTTPError as e:
-        return JsonResponse({"status": "error", "message": "YouTube API error", "detail": str(e), "response": getattr(e.response, 'text', None)}, status=502)
     except Exception as e:
-        return JsonResponse({"status": "error", "message": "Request failed", "detail": str(e)}, status=502)
+        return JsonResponse({"status": "error", "message": "YouTube API search failed", "detail": str(e)}, status=502)
 
-    return JsonResponse({"status": "ok", "tag": tag, "data": videos}, status=200)
+    items = videos.get("items", [])
+    if not items:
+        return JsonResponse({"status": "error", "message": "No videos found"}, status=404)
 
+    random_video = random.choice(items)
+    snippet = random_video.get("snippet", {})
+    video_id = random_video["id"]["videoId"]
+
+    # --- Fetch extra video details (views, likes, tags) ---
+    video_params = {
+        "part": "statistics,snippet",
+        "id": video_id,
+        "key": YOUTUBE_API_KEY,
+    }
+    try:
+        v_response = requests.get(YOUTUBE_API_VIDEOS_URL, params=video_params, timeout=10)
+        v_response.raise_for_status()
+        video_data = v_response.json()
+        video_item = video_data.get("items", [{}])[0]
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": "YouTube API video details failed", "detail": str(e)}, status=502)
+
+    statistics = video_item.get("statistics", {})
+    snippet = video_item.get("snippet", {})
+
+    video_title = snippet.get("title", "Untitled")
+    channel_title = snippet.get("channelTitle", "Unknown Channel")
+    published_at = snippet.get("publishedAt", "Unknown Date")
+    thumbnail = snippet.get("thumbnails", {}).get("medium", {}).get("url", "")
+    tags = snippet.get("tags", [])
+    likes = statistics.get("likeCount", "0")
+    views = statistics.get("viewCount", "0")
+    channel_id = snippet.get("channelId", "")
+
+    # --- Get channel thumbnail ---
+    channel_params = {
+        "part": "snippet",
+        "id": channel_id,
+        "key": YOUTUBE_API_KEY,
+    }
+    try:
+        c_response = requests.get(YOUTUBE_API_CHANNEL_URL, params=channel_params, timeout=10)
+        c_response.raise_for_status()
+        channel_data = c_response.json()
+        channel_info = channel_data.get("items", [{}])[0].get("snippet", {})
+        channel_thumbnail = channel_info.get("thumbnails", {}).get("default", {}).get("url", "")
+    except Exception:
+        channel_thumbnail = ""
+
+    # --- Final structured data ---
+    video_details = {
+        "video_id": video_id,
+        "video_title": video_title,
+        "channel_title": channel_title,
+        "published_at": published_at,
+        "tags": tags,
+        "likes": likes,
+        "views": views,
+        "thumbnail": thumbnail,
+        "channel_thumbnail": channel_thumbnail,
+    }
+
+    return JsonResponse({"status": "ok", "video_details": video_details})

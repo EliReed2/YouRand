@@ -62,8 +62,30 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'FETCH_VIDEO_INFO') {
     //prompt server to send a selected video with it's info dictionary
+    chrome.storage.local.get([UID_KEY], (res) => {
+      const uid = res ? res[UID_KEY] : null;
 
+      fetch(BACKEND_URL + '?uid=' + uid, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      })
+        .then(async (r) => {
+          const json = await r.json().catch(() => null);
+          if (!r.ok) throw { status: r.status, body: json };
+          sendResponse({ ok: true, videoInfo: json });
+        })
+        .catch((err) => {
+          console.error('fetch error', err);
+          sendResponse({ ok: false, err: String(err) });
+        });
+    });
 
-  // other message types...
+    return true;
+  }
+
+  if (msg.type === 'FETCH_USER_TAGS') {
+    //Get uid to access user tags
+    chrome.storage.local.get([UID_KEY], (res) => {
+      const uid = res ? res[UID_KEY] : null;
   }
 });
