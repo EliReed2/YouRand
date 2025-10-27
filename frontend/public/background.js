@@ -1,5 +1,5 @@
 const UID_KEY = 'uid';
-const BACKEND_URL = 'http://127.0.0.1:8000/api/fetchVideoInfo/'; 
+const BACKEND_URL = 'http://127.0.0.1:8000/api'; 
 
 function generateUid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -37,11 +37,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return;
     }
 
-    // optional: include uid in payload
     chrome.storage.local.get([UID_KEY], (res) => {
       const uid = res ? res[UID_KEY] : null;
 
-      fetch(BACKEND_URL, {
+      //If uid is null request cannot work
+      if (!uid) {
+        sendResponse({ ok: false, err: 'missing uid' });
+        return;
+      }
+
+      fetch(BACKEND_URL + '/fetchVideoInfo/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ video_id: videoId, uid })
@@ -65,7 +70,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     chrome.storage.local.get([UID_KEY], (res) => {
       const uid = res ? res[UID_KEY] : null;
 
-      fetch(BACKEND_URL + '?uid=' + uid, {
+      //If uid is null request cannot work
+      if (!uid) {
+        sendResponse({ ok: false, err: 'missing uid' });
+        return;
+      }
+
+      fetch(BACKEND_URL + '/sendVideoInfo/?uid=' + uid, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -83,9 +94,69 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
-  if (msg.type === 'FETCH_USER_TAGS') {
+  if (msg.type === 'GET_USER_TAGS') {
     //Get uid to access user tags
     chrome.storage.local.get([UID_KEY], (res) => {
       const uid = res ? res[UID_KEY] : null;
+
+      //If uid is null request cannot work
+      if (!uid) {
+        sendResponse({ ok: false, err: 'missing uid' });
+        return;
+      }
+
+      //Call backend to get user tags
+      fetch(BACKEND_URL + '/getUserTags/?uid=' + uid, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      })
+        .then(async (r) => {
+          const json = await r.json().catch(() => null);
+          if (!r.ok) throw { status: r.status, body: json };
+          sendResponse({ ok: true, userTags: json.user_tags });
+        })
+        .catch((err) => {
+          console.error('fetch error', err);
+          sendResponse({ ok: false, err: String(err) });
+        });
+    });
+
+    return true;
+  }
+
+  if (msg.type === 'GET_VIDEO_RECOMMENDATION') {
+    //Get tags from message
+    const tags = msg.tags || [];
+    //Get uid to access user tags
+    chrome.storage.local.get([UID_KEY], (res) => {
+      const uid = res ? res[UID_KEY] : null;
+
+      //If uid is null request cannot work
+      if (!uid) {
+        sendResponse({ ok: false, err: 'missing uid' });
+        return;
+      }
+
+      //Call backend to get video recommendations
+      fetch(BACKEND_URL + '/getVideoRecommendation/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, tags })
+      })
+        .then(async (r) => {
+          const json = await r.json().catch(() => null);
+          //Throw error if response not ok
+          if (!r.ok) throw { status: r.status, body: json };
+          //Otherwise send list of video recommendation back to frontend
+          sendResponse({ ok: true, videoRecommendation: json });
+        })
+        .catch((err) => {
+          //Catch any overall fetch errors
+          console.error('fetch error', err);
+          sendResponse({ ok: false, err: String(err) });
+        });
+    });
+
+    return true;
   }
 });

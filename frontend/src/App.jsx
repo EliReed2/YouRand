@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import TagPicker from "./pages/VideoRec";
-import VideoView from "./pages/VideoView";
+import TagPicker from "./pages/TagPicker";
+import VideoRec from "./pages/VideoRec";
 
 function App() {
   const [page, setPage] = useState("tags"); // "tags" or "video"
@@ -22,7 +22,7 @@ function App() {
       {page === "tags" ? (
         <TagPicker onNext={handleNext} />
       ) : (
-        <VideoView tags={selectedTags} onBack={handleBack} />
+        <VideoRec tags={selectedTags} onBack={handleBack} />
       )}
     </div>
   );

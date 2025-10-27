@@ -8,6 +8,7 @@ import os
 from dotenv import load_dotenv
 from .models import ExtensionUser
 from .utils import weighted_tag_selector_smooth
+from .utils import format_views_short
 from django.utils import timezone
 
 # Load environment variables from .env file
@@ -61,7 +62,7 @@ def fetch_video_info(request):
     if not YOUTUBE_API_KEY:
         return JsonResponse({"status": "error", "message": "YouTube API key not configured"}, status=500)
     
-    #Bse Youtube API URL
+    #Base Youtube API URL
     YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3/videos"
     YOUTUBE_API_CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
     #additional parameters for API request
@@ -165,13 +166,28 @@ def fetch_video_info(request):
 
 #Request that selects a random video using algorithm for user using UID and sends back video info
 @csrf_exempt
-def send_video_info(request):
-    if request.method != 'GET':
+def get_video_recommendation(request):
+    if request.method != 'POST':
         return JsonResponse({"status": "error", "message": "Invalid request method"}, status=405)
 
-    uid = request.GET.get('uid')
+    #Parse JSON body of post request
+    try:
+        # Parse JSON body
+        body_unicode = request.body.decode('utf-8')
+        body_data = json.loads(body_unicode)
+
+        # Extract uid & tags if any exist
+        uid = body_data.get('uid')
+        tags = body_data.get('tags', [])
+        print(f"Received tags: {tags}")
+
+    except json.JSONDecodeError:
+        return JsonResponse({"status": "error", "message": "Invalid JSON"}, status=400)
     if not uid:
         return JsonResponse({"status": "error", "message": "No uid provided"}, status=400)
+
+    #Logging Statement
+    print(f"Video recommendation requested by user: {uid} with tags: {tags}")
 
     # Get or fallback user
     try:
@@ -179,13 +195,22 @@ def send_video_info(request):
     except ExtensionUser.DoesNotExist:
         user = None
 
-    if not user or not user.saved_videos:
+    if not user or not user.category_likes:
+        #If no user exists default to trending
         tag = "trending"
+    elif tags:
+        #If users specified tags, use given tags to parse out matching tag names from category likes tag keys
+        tags = {tag: user.category_likes[tag] for tag in tags if tag in user.category_likes}
+        print(f"Filtered tags: {tags}")
+        #Now run filtered tags through weighted random selector
+        tag = weighted_tag_selector_smooth(tags)
+
     else:
+        #No tags specified, use weighted random selection based on user category likes
         category_likes = user.category_likes
         tag = weighted_tag_selector_smooth(category_likes)
 
-    # --- YouTube Search ---
+    #Youtube API search parameters to find videos matching selected tag
     search_params = {
         "part": "snippet",
         "q": tag,
@@ -213,7 +238,7 @@ def send_video_info(request):
     snippet = random_video.get("snippet", {})
     video_id = random_video["id"]["videoId"]
 
-    # --- Fetch extra video details (views, likes, tags) ---
+    #Youtube API params to pull extra video details from API for frontend use
     video_params = {
         "part": "statistics,snippet",
         "id": video_id,
@@ -236,12 +261,14 @@ def send_video_info(request):
     thumbnail = snippet.get("thumbnails", {}).get("medium", {}).get("url", "")
     tags = snippet.get("tags", [])
     likes = statistics.get("likeCount", "0")
-    views = statistics.get("viewCount", "0")
+    views_raw = statistics.get("viewCount", "0")
+    ##Use util function to covert to youtube view format
+    views = format_views_short(views_raw)
     channel_id = snippet.get("channelId", "")
 
-    # --- Get channel thumbnail ---
+    # Youtube API params to pull channel thumbnail from API for frontend use
     channel_params = {
-        "part": "snippet",
+        "part": "snippet, statistics",
         "id": channel_id,
         "key": YOUTUBE_API_KEY,
     }
@@ -249,13 +276,19 @@ def send_video_info(request):
         c_response = requests.get(YOUTUBE_API_CHANNEL_URL, params=channel_params, timeout=10)
         c_response.raise_for_status()
         channel_data = c_response.json()
-        channel_info = channel_data.get("items", [{}])[0].get("snippet", {})
+        channel_item = channel_data.get("items", [{}])[0]
+        channel_info = channel_item.get("snippet", {})
         channel_thumbnail = channel_info.get("thumbnails", {}).get("default", {}).get("url", "")
+        channel_subs_raw = channel_item.get("statistics", {}).get("subscriberCount", "0")
+        channel_subs = f"{int(channel_subs_raw):,}"
     except Exception:
         channel_thumbnail = ""
 
-    # --- Final structured data ---
+    #Structure data to send back to frontend
     video_details = {
+        #Selected tag used for search
+        "tag": tag,
+        "video_link": f"https://www.youtube.com/watch?v={video_id}",
         "video_id": video_id,
         "video_title": video_title,
         "channel_title": channel_title,
@@ -265,6 +298,35 @@ def send_video_info(request):
         "views": views,
         "thumbnail": thumbnail,
         "channel_thumbnail": channel_thumbnail,
+        "channel_subs": channel_subs,
     }
 
     return JsonResponse({"status": "ok", "video_details": video_details})
+
+#Request that uses a UID from header to send back the user tags map
+@csrf_exempt
+def get_user_tags(request):
+    if request.method == "GET":
+        uid = request.GET.get("uid")
+        if not uid:
+            return JsonResponse({"status": "error", "message": "No uid provided"}, status=400)
+
+        # Get or fallback user
+        try:
+            user = ExtensionUser.objects.get(uid=uid)
+        except ExtensionUser.DoesNotExist:
+            user = None
+
+        if not user:
+            return JsonResponse({"status": "error", "message": "User not found"}, status=404)
+
+        #Get user tags map
+        tags_data = user.category_likes
+
+        # Sort category_likes by values in descending order before sending to frontend
+        tags_data = dict(sorted(tags_data.items(), key=lambda item: item[1], reverse=True))
+
+        #Convert tag map to an array of just the keys for frontend display
+        tags_data = list(tags_data.keys())
+
+        return JsonResponse({"status": "ok", "user_tags": tags_data})
