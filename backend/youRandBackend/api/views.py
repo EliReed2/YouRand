@@ -211,10 +211,14 @@ def get_video_recommendation(request):
         tag = weighted_tag_selector_smooth(category_likes)
 
     #Youtube API search parameters to find videos matching selected tag
+
+    #Randomly choose a medium or long duration video to filter out youtube shorts
+    video_duration = random.choice(["medium", "long"])
     search_params = {
         "part": "snippet",
         "q": tag,
         "type": "video",
+        "videoDuration": video_duration,
         "maxResults": 50,
         "order": "relevance",
         "key": YOUTUBE_API_KEY,
