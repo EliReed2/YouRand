@@ -36,7 +36,7 @@ function checkVideoStatus(videoId) {
 
 // Remove existing buttons
 function removeExistingButtons() {
-  const existingButtons = document.querySelectorAll('.my-save-button, .my-saved-button');
+  const existingButtons = document.querySelectorAll('.my-save-button, .my-delete-button');
   existingButtons.forEach(btn => btn.remove());
 }
 
@@ -49,7 +49,7 @@ async function addSaveButton() {
   }
 
   // Check if button already exists for this video
-  const existingButton = document.querySelector('.my-save-button, .my-saved-button');
+  const existingButton = document.querySelector('.my-save-button, .my-delete-button');
   if (existingButton) {
     // Check if we're still on the same video
     const currentVideoId = existingButton.dataset.videoId;
@@ -89,6 +89,13 @@ async function addSaveButton() {
 // Listen for video saved event to refresh button
 window.addEventListener('videoSaved', () => {
   console.log('Video saved event received, refreshing button...');
+  removeExistingButtons();
+  setTimeout(addSaveButton, 500);
+});
+
+// Listen for video deleted event to refresh button
+window.addEventListener('videoDeleted', () => {
+  console.log('Video deleted event received, refreshing button...');
   removeExistingButtons();
   setTimeout(addSaveButton, 500);
 });

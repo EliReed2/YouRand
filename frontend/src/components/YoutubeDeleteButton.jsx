@@ -1,7 +1,5 @@
-
-export default function YoutubeSaveButton() {
+export default function YoutubeDeleteButton() {
   
-  //Helper function to send a message to background script
   function sendToBackground(message) {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage(message, (resp) => {
@@ -10,11 +8,9 @@ export default function YoutubeSaveButton() {
     });
   }
 
-  //Helper function to retrieve and return a URL search parameter
   const getVideoId = () => {
     try {
       const url = new URL(window.location.href);
-      //Pull "v" parameter from URL
       const vidId = url.searchParams.get('v');
       return vidId ? vidId : "Not Found";
     } catch (error) {
@@ -24,9 +20,9 @@ export default function YoutubeSaveButton() {
   }
 
   const createButton = () => {
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'my-save-button';
-    saveBtn.style.cssText = `
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'my-delete-button';
+    deleteBtn.style.cssText = `
       background: none;
       border: none;
       padding: 0;
@@ -38,45 +34,47 @@ export default function YoutubeSaveButton() {
       z-index: 9999;
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     `;
-    saveBtn.setAttribute('aria-label', 'Save video');
+    deleteBtn.setAttribute('aria-label', 'Delete video');
 
     const saveIconPath = 'Remove-Video.svg';
     const img = document.createElement('img');
-    img.src = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
-      ? chrome.runtime.getURL(saveIconPath)
-      : saveIconPath;
-    img.alt = 'Save Video';
+    img.src = chrome.runtime.getURL(saveIconPath);
+    img.alt = 'Delete video';
     img.style.cssText = `
       display: block;
       pointer-events: none;
-      cursor: pointer;
       height: 60px;
     `;
     img.decoding = 'async';
 
-    saveBtn.appendChild(img);
+    deleteBtn.appendChild(img);
+    
+    // Store reference to button for removal later
+    const handleDeleteClick = async () => {
+      const videoId = getVideoId();
+      if (videoId === 'Not Found') {
+        console.error('Cannot delete video: Video ID not found');
+        return;
+      }
+      
+      const resp = await sendToBackground({ type: 'DELETE_SAVED_VIDEO', video_id: videoId });
+      if (resp?.ok) {
+        console.log('Video deleted successfully!');
+        
+        // Remove this button directly
+        deleteBtn.remove();
+        
+        // Dispatch custom event to trigger button refresh
+        window.dispatchEvent(new CustomEvent('videoDeleted'));
+        
+      } else {
+        console.error('background fetch failed', resp?.err);
+      }
+    };
+    
+    deleteBtn.addEventListener('click', handleDeleteClick);
 
-    saveBtn.addEventListener('click', handleSaveClick);
-
-    return saveBtn;
-  };
-
-  //Function to handle click of button by passing the video id to util function
-  const handleSaveClick = async () => {
-    //Get video id
-    const videoId = getVideoId();
-    if (videoId === 'Not Found') {
-      console.error('Cannot save video: Video ID not found');
-      return;
-    }
-    //Send message to background script
-    const resp = await sendToBackground({ type: 'SEND_VIDEO_INFO', video_id: videoId });
-    if (resp?.ok) {
-      console.log('All good!');
-      // do whatever with resp.data
-    } else {
-      console.error('background fetch failed', resp?.err);
-    }
+    return deleteBtn;
   };
 
   return { createButton };

@@ -202,4 +202,47 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
       return true;
     }
+
+    //Request to delete a video with the specified id from database
+    if (msg.type === "DELETE_SAVED_VIDEO") {
+      //Get video id from message
+    const video_id = msg.video_id;
+    //Exist with an error if no video id given
+    if (!video_id) {
+      sendResponse({ ok: false, err: 'missing video_id' });
+      return;
+    }
+
+    //Pull uid for storage
+    chrome.storage.local.get([UID_KEY], (res) => {
+      const uid = res ? res[UID_KEY] : null;
+
+      //If uid is null request cannot work
+      if (!uid) {
+        sendResponse({ ok: false, err: 'missing uid' });
+        return;
+      }
+
+      //Send request
+      console.log(`Sending delete video request with video id ${video_id} from user ${uid}`);
+      fetch(BACKEND_URL + '/deleteSavedVideo/', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, video_id })
+      })
+      .then(async (r) => {
+          const json = await r.json().catch(() => null);
+          //Throw error if response not ok
+          if (!r.ok) throw { status: r.status, body: json };
+          //Otherwise send video status back to frontend
+          sendResponse({ ok: true, message: json });
+        })
+        .catch((err) => {
+          //Catch any overall fetch errors
+          console.error('fetch error', err);
+          sendResponse({ ok: false, err: String(err) });
+        });
+      });
+      return true;
+    }
 });

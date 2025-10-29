@@ -381,3 +381,68 @@ def check_video_status(request):
         #Return result
         return JsonResponse({"status": "ok", "video_saved": video_saved}, status=200)
 
+
+#Request deletes a saved video using given uid and video id, clears traces from saved_videos and category_likes
+@csrf_exempt
+def delete_saved_video(request):
+    if request.method == "DELETE":
+        #Pull info from delete request
+        try:
+            # Parse JSON body
+            body_unicode = request.body.decode('utf-8')
+            body_data = json.loads(body_unicode)
+            
+            uid = body_data.get("uid")
+            video_id = body_data.get("video_id")
+            
+            print(f'Received video delete request for video {video_id} from user {uid}')
+
+        except json.JSONDecodeError:
+            return JsonResponse({"status": "error", "message": "Invalid JSON"}, status=400)
+        #Ensure data arrived correctly
+        if not uid:
+            return JsonResponse({"status": "error", "message": "No uid provided"}, status=400)
+
+        if not video_id:
+            return JsonResponse({"status": "error", "message": "No video id provided"}, status=400)
+
+        #Find user with given uid
+        try:
+            user = ExtensionUser.objects.get(uid=uid)
+        except ExtensionUser.DoesNotExist:
+            user = None
+
+        if not user:
+            #If no user, video something is wrong with uid
+            return JsonResponse({"status": "error", "message": "No user with this uid"}, status=404)
+
+        #Find video to delete in saved videos
+        video_to_delete = None
+        for video in user.saved_videos:
+            if video.get('video_id') == video_id:
+                video_to_delete = video
+                break
+        
+        #Return an error if no video was found
+        if not video_to_delete:
+            return JsonResponse({"status": "error", "message": "Video not found in saved videos"}, status=404)
+
+        #Find the videos tags
+        tags = video_to_delete.get('tags', [])
+
+        #Decrement these tags from category likes
+        for tag in tags:
+            if tag in user.category_likes:
+                user.category_likes[tag] -= 1
+                #Remove tag if count has reached 0
+                if user.category_likes[tag] <= 0:
+                    del user.category_likes[tag]
+        
+        #Remove video from saved_videos
+        user.saved_videos.remove(video_to_delete)
+
+        #Save changes 
+        user.save()
+
+        #Report success in json
+        return JsonResponse({"status": "ok", "message": "Video deleted"}, status=200)
