@@ -1,5 +1,7 @@
+
 export default function YoutubeSaveButton() {
   
+  //Helper function to send a message to background script
   function sendToBackground(message) {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage(message, (resp) => {
@@ -8,9 +10,11 @@ export default function YoutubeSaveButton() {
     });
   }
 
+  //Helper function to retrieve and return a URL search parameter
   const getVideoId = () => {
     try {
       const url = new URL(window.location.href);
+      //Pull "v" parameter from URL
       const vidId = url.searchParams.get('v');
       return vidId ? vidId : "Not Found";
     } catch (error) {
@@ -36,45 +40,43 @@ export default function YoutubeSaveButton() {
     `;
     saveBtn.setAttribute('aria-label', 'Save video');
 
-    const saveIconPath = 'Add-Video.svg';
+    const saveIconPath = 'Remove-Video.svg';
     const img = document.createElement('img');
-    img.src = chrome.runtime.getURL(saveIconPath);
-    img.alt = 'Save video';
+    img.src = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
+      ? chrome.runtime.getURL(saveIconPath)
+      : saveIconPath;
+    img.alt = 'Save Video';
     img.style.cssText = `
       display: block;
       pointer-events: none;
+      cursor: pointer;
       height: 60px;
     `;
     img.decoding = 'async';
 
     saveBtn.appendChild(img);
-    
-    // Store reference to button for removal later
-    const handleSaveClick = async () => {
-      const videoId = getVideoId();
-      if (videoId === 'Not Found') {
-        console.error('Cannot save video: Video ID not found');
-        return;
-      }
-      
-      const resp = await sendToBackground({ type: 'SEND_VIDEO_INFO', video_id: videoId });
-      if (resp?.ok) {
-        console.log('Video saved successfully!');
-        
-        // Remove this button directly
-        saveBtn.remove();
-        
-        // Dispatch custom event to trigger button refresh
-        window.dispatchEvent(new CustomEvent('videoSaved'));
-        
-      } else {
-        console.error('background fetch failed', resp?.err);
-      }
-    };
-    
+
     saveBtn.addEventListener('click', handleSaveClick);
 
     return saveBtn;
+  };
+
+  //Function to handle click of button by passing the video id to util function
+  const handleSaveClick = async () => {
+    //Get video id
+    const videoId = getVideoId();
+    if (videoId === 'Not Found') {
+      console.error('Cannot save video: Video ID not found');
+      return;
+    }
+    //Send message to background script
+    const resp = await sendToBackground({ type: 'SEND_VIDEO_INFO', video_id: videoId });
+    if (resp?.ok) {
+      console.log('All good!');
+      // do whatever with resp.data
+    } else {
+      console.error('background fetch failed', resp?.err);
+    }
   };
 
   return { createButton };

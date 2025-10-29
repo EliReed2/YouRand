@@ -334,3 +334,50 @@ def get_user_tags(request):
         tags_data = list(tags_data.keys())
 
         return JsonResponse({"status": "ok", "user_tags": tags_data})
+
+
+#Request that uses a UID and video id from header to check if a video is already saved or not
+@csrf_exempt
+def check_video_status(request):
+    if request.method == "POST":
+        #Pull info from post request
+        try:
+            # Parse JSON body
+            body_unicode = request.body.decode('utf-8')
+            body_data = json.loads(body_unicode)
+            
+            uid = body_data.get("uid")
+            video_id = body_data.get("video_id")
+            
+            print(f'Received video id {video_id} from user {uid}')
+            
+        except json.JSONDecodeError:
+            return JsonResponse({"status": "error", "message": "Invalid JSON"}, status=400)
+        if not uid:
+            return JsonResponse({"status": "error", "message": "No uid provided"}, status=400)
+
+        if not video_id:
+            return JsonResponse({"status": "error", "message": "No video id provided"}, status=400)
+
+        # Get user
+        try:
+            user = ExtensionUser.objects.get(uid=uid)
+        except ExtensionUser.DoesNotExist:
+            user = None
+
+        if not user:
+            #If no user, video could not have been saved
+            return JsonResponse({"status": "ok", "video_saved": False}, status=200)
+        
+        #Pull saved videos from database
+        saved_videos = user.saved_videos
+
+        #Check if video_id exists in any of the saved video dictionaries
+        video_saved = any(
+            video.get('video_id') == video_id 
+            for video in saved_videos
+        ) if saved_videos else False
+
+        #Return result
+        return JsonResponse({"status": "ok", "video_saved": video_saved}, status=200)
+

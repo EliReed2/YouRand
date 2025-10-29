@@ -20,6 +20,7 @@ from api.views import recieveVideoId
 from api.views import fetch_video_info
 from api.views import get_video_recommendation
 from api.views import get_user_tags
+from api.views import check_video_status
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -27,4 +28,5 @@ urlpatterns = [
     path('api/fetchVideoInfo/', fetch_video_info),
     path('api/getUserTags/', get_user_tags),
     path('api/getVideoRecommendation/', get_video_recommendation),
+    path('api/checkVideoStatus/', check_video_status)
 ]

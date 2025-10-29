@@ -20,7 +20,9 @@
     {
       "resources": [
         "AddVideoIcon.svg",
-        "SmallAddVideoIcon.svg"
+        "SmallAddVideoIcon.svg",
+        "Add-Video.svg",
+        "Remove-Video.svg"
       ],
       "matches": ["<all_urls>"]
     }
