@@ -127,6 +127,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'GET_VIDEO_RECOMMENDATION') {
     //Get tags from message
     const tags = msg.tags || [];
+    //Get search method from message (true == singleTagSearch, false == multipleTagSearch
+    const isSingleTagSearch = msg.isSingleTagSearch;
     //Get uid to access user tags
     chrome.storage.local.get([UID_KEY], (res) => {
       const uid = res ? res[UID_KEY] : null;
@@ -141,7 +143,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       fetch(BACKEND_URL + '/getVideoRecommendation/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid, tags })
+        body: JSON.stringify({ uid, tags, isSingleTagSearch })
       })
         .then(async (r) => {
           const json = await r.json().catch(() => null);

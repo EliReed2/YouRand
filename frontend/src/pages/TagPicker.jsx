@@ -12,6 +12,8 @@ export default function TagPicker({ onNext }) {
     const [selectedTags, setSelectedTags] = useState([]);
     //State to store how many 'other' tags to load at a time
     const [otherTagsToShow, setOtherTagsToShow] = useState(6);
+    //State to store selected search method
+    const [isSingleTagSearch, setIsSingleTagSearch] = useState(true);
 
     //Use effect to fetch tags on component mount
     useEffect(() => {
@@ -78,9 +80,28 @@ export default function TagPicker({ onNext }) {
         ) : (
             <p className="no_tags_text">No other tags! Save more videos and your extra tags will appear here.</p>
         )}
+
+        {/* Display that opens when two or more tags are displayed and allows user to choose how they want to search for videos */}
+        {selectedTags.length > 1 &&  (
+            <>
+            <div className="search_method_header">
+            <h5>Search Method:</h5>
+            </div>
+            <div className="search_method_wrapper">
+                <div className={isSingleTagSearch ? 'selected_search_method_container' : 'search_method_container'}  onClick={() => setIsSingleTagSearch(true)}>
+                    <p className="search_method_text">Single Tag Search</p>
+                    <p className="search_method_explanation_text">YouRand will randomly select one of your tags and find a video using that tag!</p>
+                </div>
+                <div className={!isSingleTagSearch ? 'selected_search_method_container' : 'search_method_container'}  onClick={() => setIsSingleTagSearch(false)}>
+                    <p className="search_method_text">Multiple Tag Search</p>
+                    <p className="search_method_explanation_text">YouRand will use all of your selected tags to find your perfect random video!</p>
+                </div>
+            </div>
+            </>
+        )}
         <div className="button_group">
             <FaUndo className="reset_tags_btn" size={32} onClick={() => setSelectedTags([])} />
-            <button className="next_btn" onClick={() => onNext(selectedTags)}>{selectedTags.length > 0 ? `Search with ${selectedTags.length} tags!` : `Pick for me!`}</button>
+            <button className="next_btn" onClick={() => onNext(selectedTags, isSingleTagSearch)}>{selectedTags.length > 0 ? `Search with ${selectedTags.length} tags!` : `Pick for me!`}</button>
         </div>
     </div>
     </>

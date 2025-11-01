@@ -5,10 +5,12 @@ import VideoRec from "./pages/VideoRec";
 function App() {
   const [page, setPage] = useState("tags"); // "tags" or "video"
   const [selectedTags, setSelectedTags] = useState([]);
+  const [isSingleTagSearch, setIsSingleTagSearch] = useState(true);
 
   // Called from TagPicker when user is ready
-  const handleNext = (tags) => {
+  const handleNext = (tags, isSingleTagSearch) => {
     setSelectedTags(tags);
+    setIsSingleTagSearch(isSingleTagSearch);
     setPage("video");
   };
 
@@ -22,7 +24,7 @@ function App() {
       {page === "tags" ? (
         <TagPicker onNext={handleNext} />
       ) : (
-        <VideoRec tags={selectedTags} onBack={handleBack} />
+        <VideoRec tags={selectedTags} isSingleTagSearch={isSingleTagSearch} onBack={handleBack} />
       )}
     </div>
   );

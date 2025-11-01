@@ -176,9 +176,10 @@ def get_video_recommendation(request):
         body_unicode = request.body.decode('utf-8')
         body_data = json.loads(body_unicode)
 
-        # Extract uid & tags if any exist
+        # Extract uid & search method & tags if any exist
         uid = body_data.get('uid')
         tags = body_data.get('tags', [])
+        isSingleTagSearch = body_data.get('isSingleTagSearch')
         print(f"Received tags: {tags}")
 
     except json.JSONDecodeError:
@@ -197,26 +198,33 @@ def get_video_recommendation(request):
 
     if not user or not user.category_likes:
         #If no user exists default to trending
-        tag = "trending"
+        search_tags = "trending"
     elif tags:
         #If users specified tags, use given tags to parse out matching tag names from category likes tag keys
         tags = {tag: user.category_likes[tag] for tag in tags if tag in user.category_likes}
         print(f"Filtered tags: {tags}")
-        #Now run filtered tags through weighted random selector
-        tag = weighted_tag_selector_smooth(tags)
+        #Use search method to determine which tags should be used to search
+        if (not isSingleTagSearch):
+            #If user wants multipleTagSearch, seperate tags by a space and set search tags
+            search_tags = " ".join(tags)
+        else:
+            #Otherwise user wants single tag search so run filtered tags through weighted random selector
+            search_tags = weighted_tag_selector_smooth(tags)
 
     else:
         #No tags specified, use weighted random selection based on user category likes
         category_likes = user.category_likes
-        tag = weighted_tag_selector_smooth(category_likes)
+        search_tags = weighted_tag_selector_smooth(category_likes)
 
+    #Log search tags
+    print(f"Search Tags: {search_tags}")
     #Youtube API search parameters to find videos matching selected tag
 
     #Randomly choose a medium or long duration video to filter out youtube shorts
     video_duration = random.choice(["medium", "long"])
     search_params = {
         "part": "snippet",
-        "q": tag,
+        "q": search_tags,
         "type": "video",
         "videoDuration": video_duration,
         "maxResults": 50,
@@ -289,9 +297,11 @@ def get_video_recommendation(request):
         channel_thumbnail = ""
 
     #Structure data to send back to frontend
+    #Structure search tags as an array of strings
+    response_tags = search_tags.split()
     video_details = {
         #Selected tag used for search
-        "tag": tag,
+        "response_tags": response_tags,
         "video_link": f"https://www.youtube.com/watch?v={video_id}",
         "video_id": video_id,
         "video_title": video_title,

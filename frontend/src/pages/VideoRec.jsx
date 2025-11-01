@@ -1,7 +1,8 @@
 import { FaChevronLeft, FaArrowLeft, FaArrowRight } from 'react-icons/fa'
 import './VideoRec.css'
 import { useEffect, useState } from 'react'
-export default function VideoRec({ onBack, tags}) {
+
+export default function VideoRec({ onBack, tags, isSingleTagSearch}) {
     //State to store when user wants a new video recommendation
     const [newRec, setNewRec] = useState(false);
 
@@ -22,7 +23,7 @@ export default function VideoRec({ onBack, tags}) {
         console.log('Fetching video recommendation for tags:', tags);
         //Set isLoading to display loading wheel while pulling from api
         setIsLoading(true);
-        chrome.runtime.sendMessage({ type: 'GET_VIDEO_RECOMMENDATION', tags }, (response) => {
+        chrome.runtime.sendMessage({ type: 'GET_VIDEO_RECOMMENDATION', tags, isSingleTagSearch }, (response) => {
             //Set isLoading to false when api returns
             setIsLoading(false);
             if (response.ok) {
@@ -77,7 +78,11 @@ export default function VideoRec({ onBack, tags}) {
 
             <div className="tag-section">
                 <div className="tag-label">Your tag:</div>
-                <div className="tag-value">{currentRecommendation?.tag}</div>
+                <div className="tag-items">
+                    {currentRecommendation?.response_tags?.map((tag, index) => (
+                    <div key={index} className="tag-value">{tag}</div>
+                    ))}
+                </div>
                 <div className="button-group">
                 {currentRecIndex > 0 && (
                     <button className="nav-btn" title="Previous suggestion" onClick={() => {
