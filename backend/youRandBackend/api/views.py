@@ -271,7 +271,7 @@ def get_video_recommendation(request):
     channel_title = snippet.get("channelTitle", "Unknown Channel")
     published_at = snippet.get("publishedAt", "Unknown Date")
     thumbnail = snippet.get("thumbnails", {}).get("medium", {}).get("url", "")
-    video_tags = snippet.get("tags", [])
+    tags = snippet.get("tags", [])
     likes = statistics.get("likeCount", "0")
     views_raw = statistics.get("viewCount", "0")
     ##Use util function to covert to youtube view format
@@ -298,15 +298,16 @@ def get_video_recommendation(request):
 
     #Structure data to send back to frontend
     #Structure search tags as an array of strings
+    response_tags = search_tags.split()
     video_details = {
         #Selected tag used for search
-        "response_tags": tags,
+        "response_tags": response_tags,
         "video_link": f"https://www.youtube.com/watch?v={video_id}",
         "video_id": video_id,
         "video_title": video_title,
         "channel_title": channel_title,
         "published_at": published_at,
-        "tags": video_tags,
+        "tags": tags,
         "likes": likes,
         "views": views,
         "thumbnail": thumbnail,
