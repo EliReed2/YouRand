@@ -1,5 +1,5 @@
 const UID_KEY = 'uid';
-const BACKEND_URL = 'http://127.0.0.1:8000/api'; 
+const BACKEND_URL = 'https://yourand-production.up.railway.app/api'; 
 
 function generateUid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
