@@ -298,10 +298,9 @@ def get_video_recommendation(request):
 
     #Structure data to send back to frontend
     #Structure search tags as an array of strings
-    response_tags = search_tags.split()
     video_details = {
         #Selected tag used for search
-        "response_tags": response_tags,
+        "response_tags": search_tags,
         "video_link": f"https://www.youtube.com/watch?v={video_id}",
         "video_id": video_id,
         "video_title": video_title,
