@@ -198,7 +198,7 @@ def get_video_recommendation(request):
 
     if not user or not user.category_likes:
         #If no user exists default to trending
-        search_tags = "trending"
+        search_tags = ["trending"]
     elif tags:
         #If users specified tags, use given tags to parse out matching tag names from category likes tag keys
         tags = {tag: user.category_likes[tag] for tag in tags if tag in user.category_likes}
@@ -206,15 +206,17 @@ def get_video_recommendation(request):
         #Use search method to determine which tags should be used to search
         if (not isSingleTagSearch):
             #If user wants multipleTagSearch, seperate tags by a space and set search tags
-            search_tags = " ".join(tags)
+            search_tags = tags
         else:
             #Otherwise user wants single tag search so run filtered tags through weighted random selector
-            search_tags = weighted_tag_selector_smooth(tags)
+            found_tag = weighted_tag_selector_smooth(tags)
+            search_tags = [found_tag]
 
     else:
         #No tags specified, use weighted random selection based on user category likes
         category_likes = user.category_likes
-        search_tags = weighted_tag_selector_smooth(category_likes)
+        found_tag = weighted_tag_selector_smooth(category_likes)
+        search_tags = [found_tag]
 
     #Log search tags
     print(f"Search Tags: {search_tags}")
