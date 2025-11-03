@@ -206,7 +206,7 @@ def get_video_recommendation(request):
         #Use search method to determine which tags should be used to search
         if (not isSingleTagSearch):
             #If user wants multipleTagSearch, seperate tags by a space and set search tags
-            search_tags = tags
+            search_tags = tags.keys()
         else:
             #Otherwise user wants single tag search so run filtered tags through weighted random selector
             found_tag = weighted_tag_selector_smooth(tags)
