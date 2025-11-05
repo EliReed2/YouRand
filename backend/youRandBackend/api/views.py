@@ -324,7 +324,7 @@ def get_user_tags(request):
     if request.method == "GET":
         uid = request.GET.get("uid")
         if not uid:
-            return JsonResponse({"status": "error", "message": "No uid provided"}, status=400)
+            return JsonResponse({"status": "okay", "message": "No uid provided"}, status=200)
 
         # Get or fallback user
         try:
@@ -333,7 +333,7 @@ def get_user_tags(request):
             user = None
 
         if not user:
-            return JsonResponse({"status": "error", "message": "User not found"}, status=404)
+            return JsonResponse({"status": "okay", "message": "User not found"}, status=200)
 
         #Get user tags map
         tags_data = user.category_likes
