@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import TagPicker from "./pages/TagPicker";
 import VideoRec from "./pages/VideoRec";
+import youRandIcon from "../public/youRandIcon.svg"
 import './App.css'
 
 function App() {
@@ -38,9 +39,12 @@ function App() {
       {/* Show welcome card if needed */}
       {firstRun ? (
         <div class="welcome-card">
+            <header>
+              <img src={youRandIcon} className="youRand_Icon_img" alt="youRand Icon"/>
+            </header>
             <h1 class="welcome-header">Welcome to YouRand!</h1>
             <p class="welcome-text"> Thanks for installing <strong>YouRand</strong>! 
-            YouRand uses public YouTube video data and a random unique ID stored in your browser to recommend videos similar to the ones you save.
+            YouRand uses public YouTube video data and a random unique ID stored in your browser to recommend videos similar to the ones you save. <br /><br />
             None of your personal information is ever collected or shared. If you are interested in learning more, check out our <a href="https://github.com/EliReed2/YouRand?tab=readme-ov-file#privacy-policy">Privacy Policy!</a>
             </p>
             <button class="continue-button" onClick={() => setFirstRun(false)}>Get Started</button>

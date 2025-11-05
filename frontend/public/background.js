@@ -116,7 +116,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           sendResponse({ ok: true, userTags: json.user_tags });
         })
         .catch((err) => {
-          console.error('fetch error', err);
+          //console.error('fetch error', err);
           sendResponse({ ok: false, err: String(err) });
         });
     });
